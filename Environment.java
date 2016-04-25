@@ -18,9 +18,9 @@ import jade.domain.FIPAException;
 import jade.lang.acl.ACLMessage;
 import jade.lang.acl.MessageTemplate;
 import jade.proto.AchieveREInitiator;
-import mas.cv4.onto.*;
-import mas.cv4.onto.BookInfo;
-import mas.cv4.onto.BookOntology;
+import mas.bs.onto.*;
+import mas.bs.onto.BookInfo;
+import mas.bs.onto.BookOntology;
 
 import java.util.*;
 

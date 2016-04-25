@@ -18,7 +18,7 @@ import jade.domain.FIPAService;
 import jade.lang.acl.ACLMessage;
 import jade.lang.acl.MessageTemplate;
 import jade.proto.*;
-import mas.cv4.onto.*;
+import mas.bs.onto.*;
 
 import java.util.*;
 

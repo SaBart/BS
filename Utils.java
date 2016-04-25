@@ -1,8 +1,8 @@
 package mas.bs;
 
-import mas.cv4.onto.BookInfo;
-import mas.cv4.onto.AgentInfo;
-import mas.cv4.onto.Goal;
+import mas.bs.onto.BookInfo;
+import mas.bs.onto.AgentInfo;
+import mas.bs.onto.Goal;
 
 import java.util.ArrayList;
 
