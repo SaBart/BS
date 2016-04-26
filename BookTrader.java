@@ -222,8 +222,6 @@ public class BookTrader extends Agent {
             @Override
             protected void handleInform(ACLMessage inform) {
                 try {
-
-
                     //vytvorime informace o transakci a posleme je prostredi
                     MakeTransaction mt = new MakeTransaction();
 
