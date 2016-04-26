@@ -21,6 +21,7 @@ import jade.proto.*;
 import mas.bs.onto.*;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 /**
  * Created by Martin Pilat on 16.4.14.
@@ -36,9 +37,8 @@ public class BookSeller extends Agent {
 	Ontology onto = BookOntology.getInstance();
 
 	ArrayList<BookInfo> myBooks;
-	ArrayList<Goal> myGoal;
+	ArrayList<Goal> myGoals;
 	double myMoney;
-
 	Random rnd = new Random();
 
 	@Override
@@ -82,9 +82,9 @@ public class BookSeller extends Agent {
 	}
 
 	/* UTILITY */
-	double getPriceOfBook(BookInfo bi) {
+	double price(BookInfo bi) {
 		double price = 0;
-		for (Goal g : myGoal) {
+		for (Goal g : myGoals) {
 			if (bi.getBookName().equals(g.getBook().getBookName())) {
 				price += g.getValue();
 				break;
@@ -98,24 +98,19 @@ public class BookSeller extends Agent {
 	}
 
 	boolean isOurGoal(BookInfo bi) {
-		for (Goal g : myGoal)
+		for (Goal g : myGoals)
 			if (bi.getBookName().equals(g.getBook().getBookName()))
 				return true;
 		return false;
 	}
 
-	boolean doWeOwnBook(BookInfo bi) {
-		for (int j = 0; j < myBooks.size(); j++) {
-			if (myBooks.get(j).getBookName().equals(bi.getBookName())) {
-				return true;
-			}
-		}
-		return false;
+	boolean have(BookInfo bi) {
+		return getCount(bi) > 0;
 	}
 
 	boolean allGoals() {
 		int count = 1;
-		for (Goal g : myGoal) {
+		for (Goal g : myGoals) {
 			count *= getCount(g.getBook());
 		}
 		return count > 0;
@@ -176,7 +171,7 @@ public class BookSeller extends Agent {
 					AgentInfo ai = (AgentInfo) res.getValue();
 
 					myBooks = ai.getBooks();
-					myGoal = ai.getGoals();
+					myGoals = ai.getGoals();
 					myMoney = ai.getMoney();
 
 					// pridame chovani, ktere jednou za dve vteriny zkusi koupit
@@ -236,42 +231,49 @@ public class BookSeller extends Agent {
 						buyBook.addReceiver(dfad.getName());
 					}
 
-					ArrayList<BookInfo> bis = new ArrayList<BookInfo>();
+					ArrayList<Goal> want = new ArrayList<Goal>();
 
-					// chceme koupit nejakou knihu, kterou nemame
-					BookInfo bi = new BookInfo();
-
-					// mame vsechny knihy?
-					boolean allGoals = allGoals();
-
-					if (allGoals) {
-						// pokud mame vsechno, rekneme si o nahodnou
-						bi.setBookName(myGoal.get(rnd.nextInt(myGoal.size())).getBook().getBookName());
-						bis.add(bi);
+					if (allGoals()) {
+						want.addAll(myGoals);
 					} else {
-						while (true) {
-							boolean good = true;
-							// mozna vymyslet poradi ve kterem chci knihy
-							// kupovat?
-							int index = rnd.nextInt(myGoal.size());
-
-							for (int j = 0; j < myBooks.size(); j++) {
-								if (myGoal.get(index).getBook().getBookName().equals(myBooks.get(j).getBookName())) {
-									good = false;
-									break; // tuhle uz mame, zvolime jinou
-								}
-							}
-							if (good) {
-								// tuhle nemame, chceme ji
-								bi.setBookName(myGoal.get(index).getBook().getBookName());
-								bis.add(bi);
-								break;
+						for (Goal g : myGoals) {
+							if (!have(g.getBook())) {
+								want.add(g);
 							}
 						}
 					}
 
+					BookInfo book = new BookInfo();
+
+					double cheapest = Double.MAX_VALUE;
+					for (Goal g : want) {
+						if (g.getValue() < cheapest) {
+							cheapest = g.getValue();
+							book = g.getBook();
+						}
+					}
+
+					System.out.println();
+					System.out.print("Goals: ");
+					for (Goal g : myGoals) {
+						System.out.print(g.getBook() + " " + g.getValue() + "|");
+					}
+					System.out.println();
+					System.out.print("Want: ");
+					for (Goal g : want) {
+						System.out.print(g.getBook() + " " + g.getValue() + "|");
+					}
+					System.out.println();
+					System.out.print("Have: ");
+					for (BookInfo bi : myBooks) {
+						System.out.print(bi.getBookName() + "|");
+					}
+					System.out.println();
+					System.out.println("Choice: " + book.getBookName());
+					System.out.println();
+
 					SellMeBooks smb = new SellMeBooks();
-					smb.setBooks(bis);
+					smb.setBooks(new ArrayList<>(Arrays.asList(book)));
 
 					getContentManager().fillContent(buyBook, new Action(myAgent.getAID(), smb));
 					addBehaviour(new ObtainBook(myAgent, buyBook));
@@ -293,7 +295,7 @@ public class BookSeller extends Agent {
 				super(a, cfp);
 			}
 
-			Chosen c; // musime si pamatovat, co jsme nabidli
+			Chosen chosen; // musime si pamatovat, co jsme nabidli
 			ArrayList<BookInfo> shouldReceive; // pamatujeme si, i co nabidl
 												// prodavajici nam
 
@@ -310,11 +312,11 @@ public class BookSeller extends Agent {
 					mt.setReceiverName(inform.getSender().getName());
 					mt.setTradeConversationID(inform.getConversationId());
 
-					if (c.getOffer().getBooks() == null)
-						c.getOffer().setBooks(new ArrayList<BookInfo>());
+					if (chosen.getOffer().getBooks() == null)
+						chosen.getOffer().setBooks(new ArrayList<BookInfo>());
 
-					mt.setSendingBooks(c.getOffer().getBooks());
-					mt.setSendingMoney(c.getOffer().getMoney());
+					mt.setSendingBooks(chosen.getOffer().getBooks());
+					mt.setSendingMoney(chosen.getOffer().getMoney());
 
 					if (shouldReceive == null)
 						shouldReceive = new ArrayList<BookInfo>();
@@ -353,109 +355,58 @@ public class BookSeller extends Agent {
 			// zpracovani nabidek od prodavajicich
 			@Override
 			protected void handleAllResponses(Vector responses, Vector acceptances) {
-
 				Iterator it = responses.iterator();
+				Offer bestOffer = null;
+				ACLMessage bestResponse = null;
+				double bug = 0;
 
-				// je potreba vybrat jen jednu nabidku (jinak vytvorime dve
-				// transakce se stejnym ID,
-				// TODO 2015: upravit, aby bylo mozne prijmout i vice, jak
-				// pocitat ID?
-				boolean accepted = false;
 				while (it.hasNext()) {
 					ACLMessage response = (ACLMessage) it.next();
-
 					ContentElement ce = null;
 					try {
-						if (response.getPerformative() == ACLMessage.REFUSE) {
+						if (response.getPerformative() == ACLMessage.REFUSE)
 							continue;
-						}
-
 						ce = getContentManager().extractContent(response);
-
 						ChooseFrom cf = (ChooseFrom) ce;
-
 						ArrayList<Offer> offers = cf.getOffers();
 
 						// zjistime, ktere nabidky muzeme splnit
-						ArrayList<Offer> canFulfill = new ArrayList<Offer>();
+						ArrayList<Offer> want = new ArrayList<Offer>();
 						for (Offer o : offers) {
 							if (o.getMoney() > myMoney)
 								continue;
-
-							boolean foundAll = true;
 							if (o.getBooks() != null)
-								for (BookInfo bi : o.getBooks()) {
-									String bn = bi.getBookName();
-									boolean found = false;
-									for (int j = 0; j < myBooks.size(); j++) {
-										if (myBooks.get(j).getBookName().equals(bn)) {
-											found = true;
-											bi.setBookID(myBooks.get(j).getBookID());
-											break;
-										}
-									}
-									if (!found) {
-										foundAll = false;
+								for (BookInfo book : o.getBooks()) {
+									if (isOurGoal(book) && !have(book)) {
+										want.add(o);
 										break;
 									}
 								}
+						}
 
-							if (foundAll) {
-								canFulfill.add(o);
+						// pick best offer
+						for (Offer o : want) {
+							System.out.println();
+							System.out.print("Offer: ");
+							for (BookInfo bi:o.getBooks()) {
+								System.out.print(bi.getBookName() + "|");
 							}
-						}
-
-						// kdyz zadnou, tak odmitneme, stejne tak, kdyz uz jsme
-						// nejakou prijali
-						if (canFulfill.size() == 0 || accepted) {
-							ACLMessage acc = response.createReply();
-							acc.setPerformative(ACLMessage.REJECT_PROPOSAL);
-							acceptances.add(acc);
-							continue;
-						}
-
-						shouldReceive = cf.getWillSell();
-						// priblizna cena toho co kupujeme
-						double price = 0;
-						for (int i = 0; i < shouldReceive.size(); i++) {
-							price += getPriceOfBook(shouldReceive.get(i));
-						}
-
-						// vybereme nabidku
-						Chosen ch = new Chosen();
-
-						double minPrice = Integer.MAX_VALUE;
-						int minIndex = 0;
-
-						for (int i = 0; i < canFulfill.size(); i++) {
-							// cena toho co prodavame
-							double sellPrice = canFulfill.get(i).getMoney();
-							if (canFulfill.get(i).getBooks() != null) {
-								for (BookInfo bi : canFulfill.get(i).getBooks()) {
-									sellPrice += getPriceOfBook(bi);
-								}
+							System.out.println(":"+o.getMoney());
+							
+							double cug = -o.getMoney();
+							if (bestOffer == null || bestResponse == null) {
+								bug = cug;
+								bestOffer = o;
+								bestResponse = response;
+								continue;
 							}
-							if (sellPrice < minPrice) {
-								minPrice = sellPrice;
-								minIndex = i;
+							for (BookInfo bi : o.getBooks())
+								cug += price(bi);
+							if (cug>0 && cug > bug) {
+								bug = cug;
+								bestOffer = o;
+								bestResponse = response;
 							}
-						}
-
-						// 10 = magic number
-						if (minPrice <= price + 10) // accept
-						{
-							ACLMessage acc = response.createReply();
-							acc.setPerformative(ACLMessage.ACCEPT_PROPOSAL);
-							accepted = true;
-							ch.setOffer(canFulfill.get(minIndex));
-							c = ch;
-							getContentManager().fillContent(acc, ch);
-							acceptances.add(acc);
-						} else // reject
-						{
-							ACLMessage acc = response.createReply();
-							acc.setPerformative(ACLMessage.REJECT_PROPOSAL);
-							acceptances.add(acc);
 						}
 
 					} catch (Codec.CodecException e) {
@@ -463,7 +414,37 @@ public class BookSeller extends Agent {
 					} catch (OntologyException e) {
 						e.printStackTrace();
 					}
+				}
 
+				System.out.println("Best utility gain: " + bug);
+
+				it = responses.iterator();
+				while (it.hasNext()) {
+					ACLMessage response = (ACLMessage) it.next();
+					ContentElement ce = null;
+					try {
+						if (response.getPerformative() == ACLMessage.REFUSE)
+							continue;
+						ACLMessage acc = response.createReply();
+						ce = getContentManager().extractContent(response);
+						ChooseFrom cf = (ChooseFrom) ce;
+						if (response.equals(bestResponse)) {
+							acc.setPerformative(ACLMessage.ACCEPT_PROPOSAL);
+							Chosen ch = new Chosen();
+							ch.setOffer(bestOffer);
+							chosen = ch;
+							shouldReceive = cf.getWillSell();
+							getContentManager().fillContent(acc, ch);
+						} else {
+							acc.setPerformative(ACLMessage.REJECT_PROPOSAL);
+						}
+						acceptances.add(acc);
+
+					} catch (Codec.CodecException e) {
+						e.printStackTrace();
+					} catch (OntologyException e) {
+						e.printStackTrace();
+					}
 				}
 
 			}
@@ -508,25 +489,20 @@ public class BookSeller extends Agent {
 					if (sellBooks.isEmpty())
 						throw new RefuseException("");
 
-					BookInfo forSale = sellBooks.get(rnd.nextInt(sellBooks.size()));
-					double price = getPriceOfBook(forSale);
-
 					// udelame nejake nabidky
 					ArrayList<Offer> offers = new ArrayList<Offer>();
-					
-					
-					for (BookInfo book:sellBooks)
-					{
-						Offer o=new Offer();
-						o.setMoney(getPriceOfBook(book)*(1+rnd.nextDouble()));
+
+					for (BookInfo book : sellBooks) {
+						Offer o = new Offer();
+						o.setMoney(price(book));
 						o.setBooks(new ArrayList<>(Arrays.asList(book)));
 						offers.add(o);
 					}
-					
-					Offer o=new Offer();
-					o.setMoney(10);
+
+					Offer o = new Offer();
+					o.setMoney(100);
 					offers.add(o);
-					
+
 					ChooseFrom cf = new ChooseFrom();
 
 					cf.setWillSell(sellBooks);
@@ -649,7 +625,7 @@ public class BookSeller extends Agent {
 					AgentInfo ai = (AgentInfo) res.getValue();
 
 					myBooks = ai.getBooks();
-					myGoal = ai.getGoals();
+					myGoals = ai.getGoals();
 					myMoney = ai.getMoney();
 				} catch (OntologyException e) {
 					e.printStackTrace();

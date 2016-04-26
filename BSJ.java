@@ -29,7 +29,7 @@ import java.util.*;
  * nenabizel knihy, ktere nema. (Ale stejne se muze stat, ze obcas nejakou knihu zkusi prodat dvakrat, kdyz o ni pozadaji
  * dva agenti rychle po sobe.)
  */
-public class BookTrader extends Agent {
+public class BSJ extends Agent {
 
     Codec codec = new SLCodec();
     Ontology onto = BookOntology.getInstance();
@@ -78,6 +78,63 @@ public class BookTrader extends Agent {
             e.printStackTrace();
         }
     }
+    /* UTILITY */
+    double getPriceOfBook(BookInfo bi)
+    {
+        double price = 0;
+        boolean changed = false;
+        for (Goal g : myGoal)
+        {
+            if (bi.getBookName().equals(g.getBook().getBookName()))
+            {
+                price += g.getValue();
+                changed = true;
+                break;
+            }
+            //jde o knizku ktera neni v nasich cilech.. kolik stoji?
+            if (!changed)
+            {
+                price += Constants.getPrice(bi.getBookName());
+            }
+        }
+        return price;
+    }
+    
+    boolean isOurGoal(BookInfo bi)
+    {
+        for (Goal g : myGoal)
+            if (bi.getBookName().equals(g.getBook().getBookName()))
+                return true;
+        return false;
+    }
+    
+    boolean doWeOwnBook(BookInfo bi)
+    {
+        for (int j = 0; j < myBooks.size(); j++)
+        {
+            if (myBooks.get(j).getBookName().equals(bi.getBookName()))
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+    
+    boolean allGoals()
+    {
+        for (Goal g : myGoal)
+        {
+            for (int i = 0; i < myBooks.size(); i++)
+            {
+                if (myBooks.get(i).getBookName().equals(g.getBook().getBookName()))
+                    break;
+                return false;
+            }
+        }
+        return true;
+    }
+    
+    /*****************************/
 
     // ceka na zpravu o zacatku obchodovani a potom prida obchodovaci chovani
     class StartTradingBehaviour extends AchieveREResponder {
@@ -122,7 +179,7 @@ public class BookTrader extends Agent {
                     Result res = (Result)getContentManager().extractContent(myInfo);
 
                     AgentInfo ai = (AgentInfo)res.getValue();
-
+                    
                     myBooks = ai.getBooks();
                     myGoal = ai.getGoals();
                     myMoney = ai.getMoney();
@@ -185,10 +242,43 @@ public class BookTrader extends Agent {
 
                     ArrayList<BookInfo> bis = new ArrayList<BookInfo>();
 
-                    //vybereme knihu k nakupu
+                    //chceme koupit nejakou knihu, kterou nemame
                     BookInfo bi = new BookInfo();
-                    bi.setBookName(myGoal.get(rnd.nextInt(myGoal.size())).getBook().getBookName());
-                    bis.add(bi);
+                    
+                    //mame vsechny knihy?
+                    boolean allGoals = allGoals();
+                    
+                    if (allGoals)
+                    {
+                        //pokud mame vsechno, rekneme si o nahodnou
+                        bi.setBookName(myGoal.get(rnd.nextInt(myGoal.size())).getBook().getBookName());
+                        bis.add(bi);
+                    }
+                    else
+                    {
+                        while (true)
+                        {
+                            boolean good = true;
+                            // mozna vymyslet poradi ve kterem chci knihy kupovat?
+                            int index = rnd.nextInt(myGoal.size());
+                            
+                            for (int j = 0; j < myBooks.size(); j++)
+                            {
+                                if (myGoal.get(index).getBook().getBookName().equals( myBooks.get(j).getBookName() ))
+                                {
+                                    good = false;
+                                    break; //tuhle uz mame, zvolime jinou
+                                }
+                            }
+                            if (good)
+                            {
+                                //tuhle nemame, chceme ji
+                                bi.setBookName(myGoal.get(index).getBook().getBookName());
+                                bis.add(bi);
+                                break;
+                            }
+                        }
+                    }
 
                     SellMeBooks smb = new SellMeBooks();
                     smb.setBooks(bis);
@@ -222,6 +312,8 @@ public class BookTrader extends Agent {
             @Override
             protected void handleInform(ACLMessage inform) {
                 try {
+
+
                     //vytvorime informace o transakci a posleme je prostredi
                     MakeTransaction mt = new MakeTransaction();
 
@@ -330,19 +422,55 @@ public class BookTrader extends Agent {
                             continue;
                         }
 
-                        ACLMessage acc = response.createReply();
-                        acc.setPerformative(ACLMessage.ACCEPT_PROPOSAL);
-                        accepted = true;
+                        shouldReceive = cf.getWillSell();
+                        //priblizna cena toho co kupujeme
+                        double price = 0;
+                        for (int i = 0; i < shouldReceive.size(); i++)
+                        {
+                            price += getPriceOfBook(shouldReceive.get(i));
+                        }
 
                         //vybereme nabidku
                         Chosen ch = new Chosen();
-                        ch.setOffer(canFulfill.get(rnd.nextInt(canFulfill.size())));
-
-                        c=ch;
-                        shouldReceive = cf.getWillSell();
-
-                        getContentManager().fillContent(acc, ch);
-                        acceptances.add(acc);
+                        
+                        double minPrice = Integer.MAX_VALUE;
+                        int minIndex = 0;
+                        
+                        for (int i = 0; i < canFulfill.size(); i++)
+                        {
+                            //cena toho co prodavame
+                            double sellPrice = canFulfill.get(i).getMoney();
+                            if (canFulfill.get(i).getBooks() != null)
+                            {
+                                for (BookInfo bi : canFulfill.get(i).getBooks()) 
+                                {
+                                    sellPrice += getPriceOfBook(bi);
+                                }
+                            }
+                            if (sellPrice < minPrice)
+                            {
+                                minPrice = sellPrice;
+                                minIndex = i;
+                            }
+                        }
+                        
+                        //10 = magic number
+                        if (minPrice <= price + 10) //accpet
+                        {
+                            ACLMessage acc = response.createReply();
+                            acc.setPerformative(ACLMessage.ACCEPT_PROPOSAL);
+                            accepted = true;
+                            ch.setOffer(canFulfill.get(minIndex));
+                            c=ch;
+                            getContentManager().fillContent(acc, ch);
+                            acceptances.add(acc);
+                        }
+                        else // reject
+                        {
+                            ACLMessage acc = response.createReply();
+                            acc.setPerformative(ACLMessage.REJECT_PROPOSAL);
+                            acceptances.add(acc);
+                        }
 
                     } catch (Codec.CodecException e) {
                         e.printStackTrace();
@@ -369,7 +497,7 @@ public class BookTrader extends Agent {
             }
         }
 
-        class SellBookResponder extends SSContractNetResponder {
+         class SellBookResponder extends SSContractNetResponder {
 
             public SellBookResponder(Agent a, ACLMessage cfp) {
                 super(a, cfp);
@@ -399,21 +527,56 @@ public class BookTrader extends Agent {
                         if (!found)
                             throw new RefuseException("");
                     }
-
-                    //vytvorime dve neodolatelne nabidky
+                    
+                    //nekdo po nas chce jeden z nasich cilu - odmitnout
+                    for (int i = 0; i < books.size(); i++)
+                    {
+                        if (isOurGoal(books.get(i)))
+                            throw new RefuseException("");
+                    }
+                    
+                    //spocitame cenu toho co po nas chteji
+                    double price = 0;
+                    for (int i = 0; i < books.size(); i++)
+                    {
+                        price += getPriceOfBook(books.get(i));
+                    }
+                    
+                    //udelame nejake nabidky
                     ArrayList<Offer> offers = new ArrayList<Offer>();
                     
+                    //**********//
+                    // prvni nabidka bude jen penize
                     Offer o1 = new Offer();
-                    o1.setMoney(10);
+                    o1.setMoney(price + 10);
                     offers.add(o1);
-                    
-                    ArrayList<BookInfo> bis = new ArrayList<BookInfo>();
-                    bis.add(myGoal.get(rnd.nextInt(myGoal.size())).getBook());
 
-                    Offer o2 = new Offer();
-                    o2.setBooks(bis);
-                    o2.setMoney(20);
-                    offers.add(o2);
+                    //dal udelame nejake nabidku s random knihami
+                    //TODO .. takhle jak to je se to jen zacykli
+                    //mozna zmen i logiku
+                    if (!allGoals())
+                    {
+                        int size = books.size();
+                        ArrayList<BookInfo> bis = new ArrayList<BookInfo>();
+                        boolean done = false;
+                        for (int i = 0; i < 3; i++)
+                        {
+                            while (!done)
+                            {
+                                int index = rnd.nextInt(myGoal.size());
+                                if (!doWeOwnBook(myGoal.get(index).getBook()))
+                                {
+                                    bis.add(myGoal.get(index).getBook());
+                                }
+                            }
+                        }
+                        Offer o2 = new Offer();
+                        o2.setBooks(bis);
+                        o2.setMoney(0);
+                        offers.add(o2);
+                    }
+
+                    //**********//
 
                     ChooseFrom cf = new ChooseFrom();
 
