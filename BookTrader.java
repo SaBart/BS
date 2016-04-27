@@ -185,6 +185,18 @@ public class BookTrader extends Agent {
 
                     ArrayList<BookInfo> bis = new ArrayList<BookInfo>();
 
+                    System.out.println();
+					System.out.print("Goals: ");
+					for (Goal g : myGoal) {
+						System.out.print(g.getBook() + " " + g.getValue() + "|");
+					}
+					System.out.println();
+					System.out.print("Have: ");
+					for (BookInfo bi : myBooks) {
+						System.out.print(bi.getBookName() + "|");
+					}
+					System.out.println();
+                    
                     //vybereme knihu k nakupu
                     BookInfo bi = new BookInfo();
                     bi.setBookName(myGoal.get(rnd.nextInt(myGoal.size())).getBook().getBookName());
@@ -403,9 +415,9 @@ public class BookTrader extends Agent {
                     //vytvorime dve neodolatelne nabidky
                     ArrayList<Offer> offers = new ArrayList<Offer>();
                     
-                    Offer o1 = new Offer();
-                    o1.setMoney(1);
-                    offers.add(o1);
+//                    Offer o1 = new Offer();
+//                    o1.setMoney(1);
+//                    offers.add(o1);
                     
                     ArrayList<BookInfo> bis = new ArrayList<BookInfo>();
                     bis.add(myGoal.get(rnd.nextInt(myGoal.size())).getBook());

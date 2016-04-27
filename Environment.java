@@ -164,7 +164,7 @@ public class Environment extends Agent {
     private class PrintAgentUtilityBehaviour extends TickerBehaviour {
 
         public PrintAgentUtilityBehaviour(Agent myAgent) {
-            super(myAgent, 1000);
+            super(myAgent, 4000);
         }
 
         private class AgentUtil implements Comparable<AgentUtil> {
@@ -230,7 +230,6 @@ public class Environment extends Agent {
             }
 
             for (String s : remove) {
-
                 ACLMessage fail = unfinishedTransaction.get(s).getSenderMessage().createReply();
                 fail.setPerformative(ACLMessage.FAILURE);
                 fail.setContent("transaction not matched in time");
@@ -501,6 +500,7 @@ public class Environment extends Agent {
 
         //poslani chyby obema agentum, chyba je jako text, dulezity je jen performative
         void sendFailure(ACLMessage msg1, ACLMessage msg2, String text) {
+        	System.err.println(text);
             ACLMessage reply1 = msg1.createReply();
             ACLMessage reply2 = msg2.createReply();
             reply1.setPerformative(ACLMessage.FAILURE);
