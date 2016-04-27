@@ -136,7 +136,7 @@ public class Environment extends Agent {
 
                     ai.setBooks(books);
                     ai.setGoals(goal);
-                    ai.setMoney(1000);
+                    ai.setMoney(400);
 
                     System.out.println("Created goals for: " + tr.getName().getName());
                     System.out.println("\t" + ai.toString());

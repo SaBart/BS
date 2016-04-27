@@ -404,7 +404,7 @@ public class BookTrader extends Agent {
                     ArrayList<Offer> offers = new ArrayList<Offer>();
                     
                     Offer o1 = new Offer();
-                    o1.setMoney(10);
+                    o1.setMoney(1);
                     offers.add(o1);
                     
                     ArrayList<BookInfo> bis = new ArrayList<BookInfo>();
@@ -412,7 +412,7 @@ public class BookTrader extends Agent {
 
                     Offer o2 = new Offer();
                     o2.setBooks(bis);
-                    o2.setMoney(20);
+                    o2.setMoney(1);
                     offers.add(o2);
 
                     ChooseFrom cf = new ChooseFrom();

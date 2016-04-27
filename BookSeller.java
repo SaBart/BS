@@ -358,7 +358,7 @@ public class BookSeller extends Agent {
 				Iterator it = responses.iterator();
 				Offer bestOffer = null;
 				ACLMessage bestResponse = null;
-				double bug = 0;
+				double bug = Double.NEGATIVE_INFINITY;
 
 				while (it.hasNext()) {
 					ACLMessage response = (ACLMessage) it.next();
@@ -385,24 +385,18 @@ public class BookSeller extends Agent {
 						}
 
 						// pick best offer
+						
 						for (Offer o : want) {
 							System.out.println();
 							System.out.print("Offer: ");
-							for (BookInfo bi:o.getBooks()) {
+							for (BookInfo bi : o.getBooks()) {
 								System.out.print(bi.getBookName() + "|");
 							}
-							System.out.println(":"+o.getMoney());
-							
+							System.out.println(":" + o.getMoney());
 							double cug = -o.getMoney();
-							if (bestOffer == null || bestResponse == null) {
-								bug = cug;
-								bestOffer = o;
-								bestResponse = response;
-								continue;
-							}
 							for (BookInfo bi : o.getBooks())
 								cug += price(bi);
-							if (cug>0 && cug > bug) {
+							if (cug > 0 && cug > bug) {
 								bug = cug;
 								bestOffer = o;
 								bestResponse = response;
@@ -415,8 +409,6 @@ public class BookSeller extends Agent {
 						e.printStackTrace();
 					}
 				}
-
-				System.out.println("Best utility gain: " + bug);
 
 				it = responses.iterator();
 				while (it.hasNext()) {
@@ -435,6 +427,13 @@ public class BookSeller extends Agent {
 							chosen = ch;
 							shouldReceive = cf.getWillSell();
 							getContentManager().fillContent(acc, ch);
+							System.out.println();
+							System.out.print("Best offer: ");
+							for (BookInfo bi:bestOffer.getBooks())
+							{
+								System.out.print(bi.getBookName() + "|");
+							}
+							System.out.println("Utility gain: "+bug);
 						} else {
 							acc.setPerformative(ACLMessage.REJECT_PROPOSAL);
 						}
