@@ -253,25 +253,6 @@ public class BookSeller extends Agent {
 						}
 					}
 
-					System.out.println();
-					System.out.print(myAgent.getName() + " goals: ");
-					for (Goal g : myGoals) {
-						System.out.print(g.getBook() + " " + g.getValue() + "|");
-					}
-					System.out.println();
-					System.out.print(myAgent.getName() + " want: ");
-					for (Goal g : want) {
-						System.out.print(g.getBook() + " " + g.getValue() + "|");
-					}
-					System.out.println();
-					System.out.print(myAgent.getName() + " have: ");
-					for (BookInfo bi : myBooks) {
-						System.out.print(bi.getBookName() + "|");
-					}
-					System.out.println();
-					System.out.println(myAgent.getName() + " choses: " + book.getBookName());
-					System.out.println();
-
 					SellMeBooks smb = new SellMeBooks();
 					smb.setBooks(new ArrayList<>(Arrays.asList(book)));
 
@@ -373,24 +354,10 @@ public class BookSeller extends Agent {
 						// zjistime, ktere nabidky muzeme splnit
 						ArrayList<Offer> want = new ArrayList<Offer>();
 						for (Offer o : offers) {
-							System.out.println();
-							System.out.print(response.getSender().getName() + " offers: ");
-							for (BookInfo bi : o.getBooks()) {
-								System.out.print(bi.getBookName() + "|");
-							}
-							System.out.println(" for " + o.getMoney());
 							if (o.getMoney() > myMoney)
 								continue;
 							if (o.getBooks() != null)
 								for (BookInfo book : o.getBooks()) {
-									// for (BookInfo bi:myBooks)
-									// {
-									// if
-									// (book.getBookName().equals(bi.getBookName()))
-									// {
-									// book.setBookID(bi.getBookID());
-									// }
-									// }
 									if (isOurGoal(book) && !have(book)) {
 										want.add(o);
 										break;
@@ -431,16 +398,10 @@ public class BookSeller extends Agent {
 						if (response.equals(bestResponse)) {
 							acc.setPerformative(ACLMessage.ACCEPT_PROPOSAL);
 							Chosen ch = new Chosen();
-							ch.setOffer(null);
+							ch.setOffer(bestOffer);
 							chosen = ch;
 							shouldReceive = cf.getWillSell();
 							getContentManager().fillContent(acc, ch);
-							System.out.println();
-							System.out.print(response.getSender().getName() + "'s best offer: ");
-							for (BookInfo bi : bestOffer.getBooks()) {
-								System.out.print(bi.getBookName() + "|");
-							}
-							System.out.println(myAgent.getName() + " utility gain: " + bug);
 						} else {
 							acc.setPerformative(ACLMessage.REJECT_PROPOSAL);
 						}
@@ -506,9 +467,9 @@ public class BookSeller extends Agent {
 						offers.add(o);
 					}
 
-					// Offer o = new Offer();
-					// o.setMoney(100);
-					// offers.add(o);
+					Offer o = new Offer();
+					o.setMoney(myMoney);
+					offers.add(o);
 
 					ChooseFrom cf = new ChooseFrom();
 
@@ -560,14 +521,6 @@ public class BookSeller extends Agent {
 					if (c.getOffer().getBooks() == null) {
 						c.getOffer().setBooks(new ArrayList<BookInfo>());
 					}
-
-					System.out.println();
-					System.out.print("Sender:" + cfp.getSender().getName());
-
-					for (BookInfo bi : c.getOffer().getBooks()) {
-						System.out.print(bi.getBookName() + "|");
-					}
-					System.out.println(c.getOffer().getMoney());
 
 					mt.setReceivingBooks(c.getOffer().getBooks());
 					mt.setReceivingMoney(c.getOffer().getMoney());
