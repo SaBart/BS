@@ -269,7 +269,7 @@ public class BS extends Agent {
 
 					double best = Double.MIN_VALUE;
 					for (Goal g : want) {
-						if (g.getValue() > best || rnd.nextDouble() < 0.5) {
+						if (g.getValue() > best || rnd.nextDouble() < 0.1) {
 							best = g.getValue();
 							book = g.getBook();
 						}
@@ -482,15 +482,28 @@ public class BS extends Agent {
 
 					for (BookInfo book : books) {
 						sellBooks.add(getBook(book));
-
 					}
 
 					// udelame nejake nabidky
 					ArrayList<Offer> offers = new ArrayList<Offer>();
 
-					Offer o = new Offer();
-					o.setMoney(getPrice(sellBooks));
-					offers.add(o);
+					// just money
+					Offer offer = new Offer();
+					offer.setMoney(getPrice(sellBooks));
+					offers.add(offer);
+
+//					// money + book
+//					for (BookInfo book : myBooks) {
+//						if (!sellBooks.contains(book)) {
+//							Offer o = new Offer();
+//							if (isOurGoal(book))
+//								offer.setMoney(getPrice(sellBooks));
+//							else
+//								offer.setMoney(getPrice(sellBooks));
+//							offer.setBooks(new ArrayList<>(Arrays.asList(book)));
+//							offers.add(o);
+//						}
+//					}
 
 					ChooseFrom cf = new ChooseFrom();
 

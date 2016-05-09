@@ -184,18 +184,6 @@ public class BookTrader extends Agent {
                     }
 
                     ArrayList<BookInfo> bis = new ArrayList<BookInfo>();
-
-                    System.out.println();
-					System.out.print("Goals: ");
-					for (Goal g : myGoal) {
-						System.out.print(g.getBook() + " " + g.getValue() + "|");
-					}
-					System.out.println();
-					System.out.print("Have: ");
-					for (BookInfo bi : myBooks) {
-						System.out.print(bi.getBookName() + "|");
-					}
-					System.out.println();
                     
                     //vybereme knihu k nakupu
                     BookInfo bi = new BookInfo();
